@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>mousetree</title>
+<meta name="description" content="mousetree — a quiet pastel valley where the mice climb the trees.">
+<style>
+  :root{
+    --sky-top:#a9c3e6;
+    --sky-lav:#cbb9e2;
+    --sky-pink:#f4cfd9;
+    --sky-peach:#fbe6c9;
+    --ink:#5f5470;
+    --px:0px; --py:0px;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; overflow:hidden; }
+  body{
+    font-family:Georgia,'Times New Roman',serif;
+    background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-lav) 34%,var(--sky-pink) 62%,var(--sky-peach) 86%);
+    color:var(--ink);
+  }
+  .scene{ position:fixed; inset:0; overflow:hidden; }
+  .layer{ position:absolute; inset:-40px; will-change:transform; }
+  .l-far  { transform:translate3d(calc(var(--px)*0.30),calc(var(--py)*0.30),0); }
+  .l-mid  { transform:translate3d(calc(var(--px)*0.60),calc(var(--py)*0.55),0); }
+  .l-near { transform:translate3d(calc(var(--px)*1.00),calc(var(--py)*0.85),0); }
+  .l-front{ transform:translate3d(calc(var(--px)*1.55),calc(var(--py)*1.15),0); }
+
+  /* ---- slow daylight ambience ---- */
+  .ambience{
+    position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(200deg, rgba(255,214,168,.55) 0%, rgba(255,214,168,0) 55%);
+    opacity:0; animation:ambience 52s ease-in-out infinite alternate;
+  }
+  @keyframes ambience{ from{opacity:0;} to{opacity:.6;} }
+
+  /* ---- sun ---- */
+  .sun{
+    position:absolute; left:24%; top:16%;
+    width:clamp(90px,16vmin,170px); height:clamp(90px,16vmin,170px);
+    margin-left:calc(clamp(90px,16vmin,170px)/-2);
+    border-radius:50%;
+    background:radial-gradient(circle at 50% 45%, #fff8e3 0%, #ffedc2 48%, #ffd9a4 72%, rgba(255,217,164,0) 74%);
+    box-shadow:0 0 60px 30px rgba(255,226,178,.55), 0 0 140px 80px rgba(255,214,168,.28);
+    animation:sunbreathe 11s ease-in-out infinite;
+  }
+  @keyframes sunbreathe{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.045);} }
+
+  /* ---- title floating in the sky ---- */
+  .title{
+    position:absolute; top:calc(6vh + 48px); left:57%;
+    display:flex; gap:clamp(4px,.9vmin,9px);
+    z-index:5;
+  }
+  @media (max-width:640px){
+    .title{ left:50%; transform:translateX(-46%); }
+  }
+  .title .hang{
+    display:block;
+    animation:bob var(--sd,7s) ease-in-out var(--sdl,0s) infinite alternate;
+  }
+  .title .glyph{
+    display:block;
+    font-size:clamp(15px,2.5vmin,25px);
+    font-style:italic; line-height:1;
+    color:#665a7d; opacity:.85;
+    text-shadow:0 1px 0 rgba(255,255,255,.25);
+  }
+  @keyframes bob{
+    from{ transform:translateY(-3.5px) rotate(-1.4deg); }
+    to  { transform:translateY(3.5px) rotate(1.4deg); }
+  }
+
+  /* ---- clouds ---- */
+  .cloud{
+    position:absolute; left:0; opacity:.85;
+    animation:drift var(--cd,90s) linear var(--cdl,0s) infinite;
+    will-change:transform;
+  }
+  .cloud svg{ display:block; width:var(--cw,22vmin); height:auto; }
+  @keyframes drift{ from{ transform:translateX(-30vw) translateY(0);} to{ transform:translateX(115vw) translateY(0);} }
+  .c1{ top:7%;  --cw:24vmin; --cd:120s; --cdl:-30s; }
+  .c2{ top:16%; --cw:15vmin; --cd:95s;  --cdl:-70s; opacity:.7; }
+  .c3{ top:27%; --cw:19vmin; --cd:140s; --cdl:-105s; opacity:.75; }
+  .c4{ top:4%;  --cw:12vmin; --cd:80s;  --cdl:-12s; opacity:.6; }
+
+  /* ---- birds ---- */
+  .flock{
+    position:absolute; top:24%; left:0;
+    animation:fly var(--fd,38s) linear var(--fdl,0s) infinite;
+    will-change:transform;
+  }
+  @keyframes fly{
+    0%   { transform:translate(-12vw, 0); }
+    50%  { transform:translate(50vw, -3vh); }
+    100% { transform:translate(112vw, 1vh); }
+  }
+  .bird{ position:absolute; animation:flap .9s ease-in-out infinite alternate; }
+  .bird svg{ display:block; width:clamp(20px,3.2vmin,36px); height:auto; }
+  @keyframes flap{ from{ transform:scaleY(.55);} to{ transform:scaleY(1.15);} }
+  .f2{ top:33%; --fd:52s; --fdl:-26s; }
+
+  /* ---- mountains & hills ---- */
+  .band{ position:absolute; left:0; right:0; bottom:40px; }
+  .band svg{ display:block; width:100%; height:100%; }
+  .m-back{ height:52%; }
+  .m-mid { height:40%; }
+  .h-back{ height:22%; }
+  .h-front{ height:14%; }
+
+  /* ---- trees ---- */
+  .tree{
+    position:absolute; bottom:calc(var(--tb,3.5vh) + 40px); left:var(--tx,50%);
+    width:calc(var(--th) * 0.72); height:var(--th);
+    margin-left:calc(var(--th) * -0.36);
+  }
+  .tree-inner{
+    position:absolute; inset:0;
+    transform-origin:50% 100%;
+    animation:sway var(--swd,7s) ease-in-out var(--swl,0s) infinite alternate;
+  }
+  @keyframes sway{ from{ transform:rotate(-0.9deg);} to{ transform:rotate(0.9deg);} }
+  .tree-inner > svg.shape{ position:absolute; inset:0; width:100%; height:100%; }
+  .tree.back{ filter:saturate(.75) brightness(1.06); opacity:.92; }
+
+  /* internal tree motion: trunk flex + layered foliage clusters at different phases */
+  .part{ position:absolute; inset:0; width:100%; height:100%; }
+  .trunkp{
+    transform-origin:50% 100%;
+    animation:trunkflex 7.5s ease-in-out calc(var(--pdl,0s) - .6s) infinite alternate;
+  }
+  @keyframes trunkflex{ from{ transform:rotate(-.45deg);} to{ transform:rotate(.45deg);} }
+  .fol-b{
+    transform-origin:50% 62%;
+    animation:folsway1 6.5s ease-in-out var(--pdl,0s) infinite alternate;
+  }
+  @keyframes folsway1{ from{ transform:rotate(-1deg);} to{ transform:rotate(1.1deg);} }
+  .fol-m{
+    transform-origin:50% 58%;
+    animation:folsway2 5.2s ease-in-out calc(var(--pdl,0s) - 1.4s) infinite alternate;
+  }
+  @keyframes folsway2{ from{ transform:rotate(1.5deg) translateX(-.6%);} to{ transform:rotate(-1.6deg) translateX(.6%);} }
+  .fol-f{
+    transform-origin:48% 52%;
+    animation:folsway3 4.3s ease-in-out calc(var(--pdl,0s) - 2.6s) infinite alternate;
+  }
+  @keyframes folsway3{ from{ transform:rotate(-2.1deg) translate(.5%, .4%);} to{ transform:rotate(2.2deg) translate(-.5%, -.4%);} }
+
+  /* occasional drifting leaf */
+  .leaf{
+    position:absolute; left:58%; top:24%;
+    width:calc(var(--th) * 0.05); height:auto;
+    opacity:0; pointer-events:none;
+    animation:leaffall var(--lfd,9s) ease-in var(--lfl,0s) infinite;
+    will-change:transform,opacity;
+  }
+  @keyframes leaffall{
+    0%  { transform:translate(0,0) rotate(0deg); opacity:0; }
+    6%  { opacity:.9; }
+    30% { transform:translate(calc(var(--th) * -0.07), calc(var(--th) * 0.18)) rotate(120deg); }
+    55% { transform:translate(calc(var(--th) * 0.03),  calc(var(--th) * 0.38)) rotate(230deg); opacity:.85; }
+    82% { transform:translate(calc(var(--th) * -0.09), calc(var(--th) * 0.58)) rotate(330deg); opacity:.6; }
+    92% { opacity:0; transform:translate(calc(var(--th) * -0.05), calc(var(--th) * 0.68)) rotate(380deg); }
+    100%{ opacity:0; transform:translate(calc(var(--th) * -0.05), calc(var(--th) * 0.68)) rotate(380deg); }
+  }
+
+  /* ---- the mouse: a single JS-driven roamer ---- */
+  #roamer{
+    position:absolute; left:0; top:0; width:0; height:0;
+    will-change:transform; z-index:6;
+  }
+  #roamer svg{
+    position:absolute; left:0; bottom:0; height:auto;
+    transform:translateX(-50%);
+    transform-origin:50% 100%;
+  }
+  #roamer .r-run{ width:clamp(22px,3.6vmin,38px); }
+  #roamer .r-climb{ width:clamp(15px,2.5vmin,26px); }
+
+  /* ---- drifting seeds / fireflies ---- */
+  .mote{
+    position:absolute; width:5px; height:5px; border-radius:50%;
+    background:rgba(255,248,220,.9);
+    box-shadow:0 0 8px 2px rgba(255,240,200,.5);
+    animation:float var(--fld,16s) ease-in-out var(--fll,0s) infinite alternate;
+    opacity:.7;
+  }
+  @keyframes float{
+    from{ transform:translate(0,0); opacity:.25; }
+    to  { transform:translate(4vmin,-7vmin); opacity:.85; }
+  }
+
+  /* ---- reduced motion ---- */
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{ animation:none !important; }
+    .c1{ transform:translateX(12vw); }
+    .c2{ transform:translateX(48vw); }
+    .c3{ transform:translateX(72vw); }
+    .c4{ transform:translateX(30vw); }
+    .flock{ transform:translate(38vw,-2vh); }
+    .f2{ transform:translate(64vw,0); }
+    .layer{ transform:none !important; }
+  }
+</style>
+</head>
+<body>
+<main class="scene" id="scene">
+
+  <!-- far layer: sun, title, clouds, birds, back mountains -->
+  <div class="layer l-far">
+    <div class="sun" aria-hidden="true"></div>
+
+    <h1 class="title" aria-label="mousetree" id="title"></h1>
+
+    <div class="cloud c1" aria-hidden="true"><svg viewBox="0 0 220 64"><path fill="#fff" fill-opacity=".9" d="M28 52c-14 0-24-8-24-19 0-10 9-18 20-18 3-9 12-15 23-15 12 0 22 7 25 17 3-2 7-3 11-3 10 0 18 6 20 14 2-1 5-2 8-2 12 0 21 8 21 17 0 5-3 9-8 9z"/></svg></div>
+    <div class="cloud c2" aria-hidden="true"><svg viewBox="0 0 220 64"><path fill="#fff" fill-opacity=".85" d="M28 52c-14 0-24-8-24-19 0-10 9-18 20-18 3-9 12-15 23-15 12 0 22 7 25 17 3-2 7-3 11-3 10 0 18 6 20 14 2-1 5-2 8-2 12 0 21 8 21 17 0 5-3 9-8 9z"/></svg></div>
+    <div class="cloud c3" aria-hidden="true"><svg viewBox="0 0 220 64"><path fill="#fff" fill-opacity=".85" d="M28 52c-14 0-24-8-24-19 0-10 9-18 20-18 3-9 12-15 23-15 12 0 22 7 25 17 3-2 7-3 11-3 10 0 18 6 20 14 2-1 5-2 8-2 12 0 21 8 21 17 0 5-3 9-8 9z"/></svg></div>
+    <div class="cloud c4" aria-hidden="true"><svg viewBox="0 0 220 64"><path fill="#fff" fill-opacity=".8" d="M28 52c-14 0-24-8-24-19 0-10 9-18 20-18 3-9 12-15 23-15 12 0 22 7 25 17 3-2 7-3 11-3 10 0 18 6 20 14 2-1 5-2 8-2 12 0 21 8 21 17 0 5-3 9-8 9z"/></svg></div>
+
+    <div class="flock f1" aria-hidden="true">
+      <span class="bird" style="left:0;top:0"><svg viewBox="0 0 40 16"><path d="M2 12 Q11 2 20 10 Q29 2 38 12" fill="none" stroke="#5e6a8c" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+      <span class="bird" style="left:34px;top:14px;animation-delay:-.35s"><svg viewBox="0 0 40 16"><path d="M2 12 Q11 2 20 10 Q29 2 38 12" fill="none" stroke="#5e6a8c" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+      <span class="bird" style="left:-26px;top:22px;animation-delay:-.6s"><svg viewBox="0 0 40 16"><path d="M2 12 Q11 2 20 10 Q29 2 38 12" fill="none" stroke="#5e6a8c" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+    </div>
+    <div class="flock f2" aria-hidden="true">
+      <span class="bird" style="left:0;top:0;animation-delay:-.2s"><svg viewBox="0 0 40 16"><path d="M2 12 Q11 2 20 10 Q29 2 38 12" fill="none" stroke="#67729a" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+    </div>
+
+    <div class="band m-back" aria-hidden="true">
+      <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+        <path fill="#c5b3e0" d="M0 320 L0 210 Q60 190 110 145 Q170 90 235 130 Q300 168 355 120 Q420 62 480 105 Q545 152 610 128 Q690 98 750 40 Q800 -8 860 55 Q915 112 985 95 Q1060 75 1120 118 Q1180 160 1250 130 Q1330 96 1440 165 L1440 320 Z"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- mid layer: front mountains -->
+  <div class="layer l-mid">
+    <div class="band m-mid" aria-hidden="true">
+      <svg viewBox="0 0 1440 260" preserveAspectRatio="none">
+        <path fill="#a195cf" d="M0 260 L0 170 Q80 130 150 155 Q230 185 300 120 Q370 58 440 100 Q505 140 575 125 Q655 108 720 60 Q782 15 850 75 Q910 128 990 110 Q1075 90 1145 135 Q1215 180 1290 150 Q1365 120 1440 175 L1440 260 Z"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- near layer: hills + back trees -->
+  <div class="layer l-near">
+    <div class="band h-back" aria-hidden="true">
+      <svg viewBox="0 0 1440 140" preserveAspectRatio="none">
+        <path fill="#b3d8a6" d="M0 140 L0 70 Q180 20 380 55 Q560 86 720 48 Q900 6 1080 50 Q1260 92 1440 55 L1440 140 Z"/>
+      </svg>
+    </div>
+    <div class="tree back" style="--tx:38%; --th:clamp(90px,15vmin,170px); --tb:9vh; --swd:8.5s; --swl:-3s;">
+      <div class="tree-inner">
+        <svg class="shape" viewBox="0 0 100 150"><use href="#treeshape2"/></svg>
+      </div>
+    </div>
+    <div class="tree back" style="--tx:52%; --th:clamp(80px,13vmin,150px); --tb:10vh; --swd:9.5s; --swl:-6s;">
+      <div class="tree-inner">
+        <svg class="shape" viewBox="0 0 100 150"><use href="#treeshape2"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- front layer: front hill + main trees + the mouse -->
+  <div class="layer l-front" id="front">
+    <div class="band h-front" aria-hidden="true">
+      <svg viewBox="0 0 1440 100" preserveAspectRatio="none">
+        <path fill="#93c78f" d="M0 100 L0 55 Q200 12 430 42 Q640 68 830 35 Q1030 2 1220 40 Q1340 62 1440 42 L1440 100 Z"/>
+      </svg>
+    </div>
+
+    <div class="tree" style="--tx:12%; --th:clamp(170px,30vmin,340px); --tb:2vh; --swd:7s; --pdl:0s;">
+      <div class="tree-inner">
+        <svg class="shape part trunkp" viewBox="0 0 100 150"><use href="#trunkA"/></svg>
+        <svg class="shape part fol-b" viewBox="0 0 100 150"><use href="#folAback"/></svg>
+        <svg class="shape part fol-m" viewBox="0 0 100 150"><use href="#folAmid"/></svg>
+        <svg class="shape part fol-f" viewBox="0 0 100 150"><use href="#folAfront"/></svg>
+        <svg class="leaf" viewBox="0 0 12 12" style="--lfd:11s; --lfl:-3s;"><use href="#leafshape"/></svg>
+      </div>
+    </div>
+
+    <div class="tree" style="--tx:30%; --th:clamp(125px,22vmin,250px); --tb:3vh; --swd:8s; --swl:-2s; --pdl:-1.3s;">
+      <div class="tree-inner">
+        <svg class="shape part trunkp" viewBox="0 0 100 150"><use href="#trunkB"/></svg>
+        <svg class="shape part fol-b" viewBox="0 0 100 150"><use href="#folBback"/></svg>
+        <svg class="shape part fol-m" viewBox="0 0 100 150"><use href="#folBmid"/></svg>
+        <svg class="shape part fol-f" viewBox="0 0 100 150"><use href="#folBfront"/></svg>
+      </div>
+    </div>
+
+    <div class="tree" style="--tx:66%; --th:clamp(150px,26vmin,300px); --tb:2.5vh; --swd:7.6s; --swl:-4s; --pdl:-2.7s;">
+      <div class="tree-inner">
+        <svg class="shape part trunkp" viewBox="0 0 100 150"><use href="#trunkB"/></svg>
+        <svg class="shape part fol-b" viewBox="0 0 100 150"><use href="#folBback"/></svg>
+        <svg class="shape part fol-m" viewBox="0 0 100 150"><use href="#folBmid"/></svg>
+        <svg class="shape part fol-f" viewBox="0 0 100 150"><use href="#folBfront"/></svg>
+        <svg class="leaf" viewBox="0 0 12 12" style="--lfd:13s; --lfl:-9s;"><use href="#leafshape"/></svg>
+      </div>
+    </div>
+
+    <div class="tree" style="--tx:87%; --th:clamp(185px,33vmin,370px); --tb:1.5vh; --swd:6.6s; --swl:-1s; --pdl:-4.1s;">
+      <div class="tree-inner">
+        <svg class="shape part trunkp" viewBox="0 0 100 150"><use href="#trunkA"/></svg>
+        <svg class="shape part fol-b" viewBox="0 0 100 150"><use href="#folAback"/></svg>
+        <svg class="shape part fol-m" viewBox="0 0 100 150"><use href="#folAmid"/></svg>
+        <svg class="shape part fol-f" viewBox="0 0 100 150"><use href="#folAfront"/></svg>
+        <svg class="leaf" viewBox="0 0 12 12" style="--lfd:10s; --lfl:-6s;"><use href="#leafshape"/></svg>
+      </div>
+    </div>
+
+    <span class="mote" style="left:22%; top:64%; --fld:14s;"></span>
+    <span class="mote" style="left:45%; top:72%; --fld:18s; --fll:-6s;"></span>
+    <span class="mote" style="left:58%; top:60%; --fld:16s; --fll:-11s;"></span>
+    <span class="mote" style="left:76%; top:68%; --fld:20s; --fll:-3s;"></span>
+    <span class="mote" style="left:8%;  top:75%; --fld:15s; --fll:-8s;"></span>
+
+    <div id="roamer" aria-hidden="true">
+      <svg class="r-run" viewBox="0 0 30 26"><use href="#mousesit"/></svg>
+      <svg class="r-climb" viewBox="0 0 24 50"><use href="#mouseshape"/></svg>
+    </div>
+  </div>
+
+  <div class="ambience" aria-hidden="true"></div>
+
+  <!-- shared shapes -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <!-- detailed tree, variant A: structured trunk + branches, layered foliage -->
+      <g id="trunkA">
+        <path d="M45.5 150 C47 118 45.5 96 48 66 L52 66 C54.5 96 53 118 54.5 150 Z" fill="#96685a"/>
+        <path d="M49.4 146 C48.6 120 48.2 100 49 74" stroke="#ab7f6f" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        <path d="M49 98 C42 92 35 87 29 78" fill="none" stroke="#96685a" stroke-width="3.6" stroke-linecap="round"/>
+        <path d="M35 87 C33 83 32 80 31.5 75" fill="none" stroke="#96685a" stroke-width="2.1" stroke-linecap="round"/>
+        <path d="M51 84 C58 78 64 74 69 65" fill="none" stroke="#96685a" stroke-width="3.2" stroke-linecap="round"/>
+        <path d="M62 75 C64 71 65 69 66 64" fill="none" stroke="#96685a" stroke-width="1.9" stroke-linecap="round"/>
+        <path d="M50 114 C55 109 59 107 64 102" fill="none" stroke="#96685a" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+      <g id="folAback">
+        <circle cx="29" cy="70" r="15" fill="#699f77"/>
+        <circle cx="70" cy="61" r="16" fill="#699f77"/>
+        <circle cx="50" cy="33" r="17" fill="#6fae83"/>
+        <circle cx="63" cy="99" r="7.5" fill="#699f77"/>
+      </g>
+      <g id="folAmid">
+        <circle cx="50" cy="49" r="23" fill="#82c290"/>
+        <circle cx="32" cy="58" r="14" fill="#7cbd8c"/>
+        <circle cx="68" cy="52" r="14" fill="#7cbd8c"/>
+        <circle cx="42" cy="29" r="12" fill="#8bc997"/>
+      </g>
+      <g id="folAfront">
+        <circle cx="44" cy="42" r="12" fill="#9ed3a4"/>
+        <circle cx="59" cy="46" r="11" fill="#98cf9f"/>
+        <circle cx="50" cy="60" r="11" fill="#93cb9b"/>
+        <circle cx="40" cy="32" r="7" fill="#b2dfb5"/>
+        <circle cx="66" cy="37" r="4.5" fill="#aadbae"/>
+        <circle cx="30" cy="49" r="4" fill="#aadbae"/>
+        <circle cx="55" cy="26" r="3.5" fill="#b9e3bb"/>
+      </g>
+      <!-- detailed tree, variant B: rounder canopy -->
+      <g id="trunkB">
+        <path d="M46 150 C47.5 118 46 98 48 70 L52 70 C54 98 52.5 118 54 150 Z" fill="#a3766a"/>
+        <path d="M50.2 146 C49.6 122 49.4 104 49.8 78" stroke="#b98878" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+        <path d="M49 100 C43 93 38 89 33 81" fill="none" stroke="#a3766a" stroke-width="3.2" stroke-linecap="round"/>
+        <path d="M39 90 C37.5 86 37 84 36.5 80" fill="none" stroke="#a3766a" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M51 88 C57 82 62 78 66 70" fill="none" stroke="#a3766a" stroke-width="3" stroke-linecap="round"/>
+      </g>
+      <g id="folBback">
+        <ellipse cx="31" cy="66" rx="14" ry="12" fill="#679d76"/>
+        <ellipse cx="68" cy="60" rx="15" ry="13" fill="#679d76"/>
+        <ellipse cx="50" cy="31" rx="16" ry="14" fill="#6fae83"/>
+      </g>
+      <g id="folBmid">
+        <ellipse cx="50" cy="47" rx="24" ry="22" fill="#86c493"/>
+        <ellipse cx="33" cy="55" rx="13" ry="12" fill="#7fbf8e"/>
+        <ellipse cx="67" cy="51" rx="13" ry="12" fill="#7fbf8e"/>
+      </g>
+      <g id="folBfront">
+        <ellipse cx="45" cy="39" rx="12" ry="11" fill="#a0d4a6"/>
+        <ellipse cx="58" cy="49" rx="11" ry="10" fill="#97d09e"/>
+        <ellipse cx="48" cy="59" rx="10" ry="9" fill="#93cb9b"/>
+        <circle cx="55" cy="28" r="7" fill="#aedcb1"/>
+        <circle cx="35" cy="45" r="4" fill="#b2dfb5"/>
+        <circle cx="63" cy="36" r="3.5" fill="#b9e3bb"/>
+      </g>
+      <g id="leafshape">
+        <path d="M6 1 C10 3.5 10 8 6 11 C2 8 2 3.5 6 1 Z" fill="#8fcb98"/>
+        <path d="M6 2.5 L6 9.5" stroke="#79b487" stroke-width=".7" stroke-linecap="round"/>
+      </g>
+      <!-- simple distant tree -->
+      <g id="treeshape2">
+        <path d="M46 150 C47.5 115 46.5 95 48 66 L52 66 C53.5 95 52.5 115 54 150 Z" fill="#a3766a"/>
+        <ellipse cx="50" cy="48" rx="27" ry="30" fill="#86c493"/>
+        <circle cx="33" cy="66" r="14" fill="#9ed3a4"/>
+        <circle cx="68" cy="64" r="15" fill="#74b487"/>
+        <circle cx="55" cy="28" r="12" fill="#aedcb1"/>
+      </g>
+      <!-- climbing mouse, back view, head up -->
+      <g id="mouseshape">
+        <path d="M12 36 Q17 42 14 47 Q12 50 9 48" fill="none" stroke="#8d89a6" stroke-width="2" stroke-linecap="round"/>
+        <ellipse cx="12" cy="28" rx="6.4" ry="9.6" fill="#9793b0"/>
+        <ellipse cx="5.6" cy="26" rx="2.1" ry="3.1" fill="#847fa0" transform="rotate(14 5.6 26)"/>
+        <ellipse cx="18.4" cy="26" rx="2.1" ry="3.1" fill="#847fa0" transform="rotate(-14 18.4 26)"/>
+        <ellipse cx="6" cy="33.5" rx="2.1" ry="3.1" fill="#847fa0" transform="rotate(-12 6 33.5)"/>
+        <ellipse cx="18" cy="33.5" rx="2.1" ry="3.1" fill="#847fa0" transform="rotate(12 18 33.5)"/>
+        <circle cx="12" cy="15.5" r="5.4" fill="#9793b0"/>
+        <circle cx="7" cy="10.5" r="3.4" fill="#9793b0"/>
+        <circle cx="17" cy="10.5" r="3.4" fill="#9793b0"/>
+        <circle cx="7" cy="10.5" r="1.7" fill="#f2b9c6"/>
+        <circle cx="17" cy="10.5" r="1.7" fill="#f2b9c6"/>
+      </g>
+      <!-- sitting mouse, profile -->
+      <g id="mousesit">
+        <path d="M23 22 Q30 20 29 13" fill="none" stroke="#8d89a6" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M6 24 Q3 15 10 10 Q17 5 22 12 Q26 17 24 24 Z" fill="#9793b0"/>
+        <circle cx="9" cy="8" r="3.2" fill="#9793b0"/>
+        <circle cx="9" cy="8" r="1.6" fill="#f2b9c6"/>
+        <circle cx="6.5" cy="12.5" r="1" fill="#4c4560"/>
+        <path d="M4.5 14.5 L1.5 14" stroke="#8d89a6" stroke-width=".7" stroke-linecap="round"/>
+        <path d="M4.5 15.5 L2 16.5" stroke="#8d89a6" stroke-width=".7" stroke-linecap="round"/>
+      </g>
+    </defs>
+  </svg>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  // floating letters
+  var word = "mousetree";
+  var offs = [0, 4, 1, 6, 3, 0, 5, 2, 7]; // px, gentle baseline wave
+  var t = document.getElementById("title");
+  for (var i = 0; i < word.length; i++){
+    var hang = document.createElement("span");
+    hang.className = "hang";
+    hang.setAttribute("aria-hidden","true");
+    hang.style.marginTop = offs[i] + "px";
+    hang.style.setProperty("--sd", (5.8 + (i % 4) * 0.9) + "s");
+    hang.style.setProperty("--sdl", (-i * 1.15) + "s");
+    var g = document.createElement("span");
+    g.className = "glyph";
+    g.textContent = word[i];
+    hang.appendChild(g);
+    t.appendChild(hang);
+  }
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  /* ---- the mouse: one small creature with a mind of its own ---- */
+  (function(){
+    var front = document.getElementById("front");
+    var roamer = document.getElementById("roamer");
+    var runS = roamer.querySelector(".r-run");
+    var climbS = roamer.querySelector(".r-climb");
+    var treeEls = Array.prototype.slice.call(front.querySelectorAll(".tree:not(.back)"));
+    var trees = [];
+
+    function measure(){
+      var fr = front.getBoundingClientRect();
+      trees = treeEls.map(function(el){
+        var r = el.getBoundingClientRect();
+        return {
+          x: r.left - fr.left + r.width / 2,   // trunk centre (layer-local)
+          base: r.bottom - fr.top,             // ground line at this tree
+          top: r.bottom - fr.top - r.height * 0.52, // just below the canopy
+          h: r.height
+        };
+      });
+    }
+    measure();
+
+    function rnd(a, b){ return a + Math.random() * (b - a); }
+    function ease(p){ return p < 0 ? 0 : p > 1 ? 1 : p * p * (3 - 2 * p); }
+    function pickTree(not){
+      if (trees.length < 2) return not;
+      var i;
+      do { i = Math.floor(Math.random() * trees.length); } while (i === not);
+      return i;
+    }
+
+    var seed = Math.random() * 10;
+    var cur = 1;                        // tree the mouse is at / on
+    var px = trees[cur].x, py = trees[cur].base;
+    var dir = 1;
+    var mode = "sit";                   // sit | wander | climbup | top | climbdown
+    var untilT = 0;                     // pause deadline
+    var wanderNext = true;              // after this sit: wander (true) or climb (false)
+    var target = cur, sx = 0, sy = 0, segL = 0, segS = 0;
+    var prog = 0, climbV = 0;
+    var nextCheck = 0, last = 0;
+
+    function show(which, d){
+      runS.style.display = which === "run" ? "block" : "none";
+      climbS.style.display = which === "climb" ? "block" : "none";
+      if (which === "run"){
+        runS.style.transform = "translateX(-50%) scaleX(" + (d > 0 ? -1 : 1) + ")";
+      }
+    }
+    function place(){
+      roamer.style.transform = "translate3d(" + px.toFixed(1) + "px," + py.toFixed(1) + "px,0)";
+    }
+    function startWander(now){
+      target = pickTree(cur);
+      sx = px; sy = py; segS = 0;
+      segL = Math.hypot(trees[target].x - sx, trees[target].base - sy);
+      dir = trees[target].x >= sx ? 1 : -1;
+      mode = "wander";
+      show("run", dir);
+      nextCheck = now + 600;
+    }
+
+    show("run", 1);
+    place();
+
+    if (reduced.matches){
+      // one static sitting mouse at a tree base
+      window.addEventListener("resize", function(){
+        measure(); px = trees[cur].x; py = trees[cur].base; place();
+      });
+    } else {
+      var loop = function(now){
+        if (!last) last = now;
+        var dt = Math.min(now - last, 50);
+        last = now;
+        if (now < untilT){ requestAnimationFrame(loop); return; }
+
+        switch (mode){
+          case "sit":
+            if (wanderNext){
+              startWander(now);
+            } else {
+              mode = "climbup"; prog = 0;
+              climbV = rnd(0.00008, 0.00015);
+              show("climb", 0);
+              nextCheck = now + 700;
+            }
+            break;
+
+          case "wander": {
+            if (now > nextCheck){
+              nextCheck = now + 600;
+              if (Math.random() < 0.16 && segS > 40 && (segL - segS) > 70){
+                untilT = now + rnd(500, 1600);   // stop and sniff
+                break;
+              }
+            }
+            var eV = 0.3 + 0.7 * Math.min(1, segS / 80, (segL - segS) / 80);
+            var v = (0.09 + 0.05 * Math.sin(now * 0.006 + seed)) * eV;
+            segS += v * dt * (trees[target].h / 220 + 0.55);
+            if (segS >= segL){
+              segS = segL; cur = target;
+              px = trees[cur].x; py = trees[cur].base;
+              wanderNext = Math.random() < 0.22;  // sometimes just passes through
+              mode = "sit";
+              untilT = now + rnd(400, 1800);
+              show("run", dir);
+            } else {
+              var p = segS / segL;
+              px = sx + (trees[target].x - sx) * p;
+              py = sy + (trees[target].base - sy) * p
+                   - Math.abs(Math.sin(segS * 0.09)) * 2.4;  // scampering hops
+            }
+            break;
+          }
+
+          case "climbup": {
+            prog += climbV * dt * (1 + 0.35 * Math.sin(now * 0.004 + seed * 3));
+            if (now > nextCheck){
+              nextCheck = now + 700;
+              if (Math.random() < 0.22 && prog > 0.12 && prog < 0.85){
+                untilT = now + rnd(350, 1100);   // hesitate on the trunk
+              }
+            }
+            if (prog >= 1){
+              prog = 1; mode = "top";
+              untilT = now + rnd(1200, 3400);    // take in the view
+            }
+            px = trees[cur].x;
+            py = trees[cur].base + (trees[cur].top - trees[cur].base) * ease(prog);
+            break;
+          }
+
+          case "top":
+            mode = "climbdown";
+            climbV = rnd(0.00012, 0.0002);
+            nextCheck = now + 500;
+            break;
+
+          case "climbdown": {
+            prog -= climbV * dt * (1 + 0.3 * Math.sin(now * 0.005 + seed * 5));
+            if (now > nextCheck){
+              nextCheck = now + 800;
+              if (Math.random() < 0.15 && prog > 0.15 && prog < 0.8){
+                untilT = now + rnd(300, 900);
+              }
+            }
+            if (prog <= 0){
+              prog = 0; wanderNext = true; mode = "sit";
+              untilT = now + rnd(500, 2000);
+              show("run", dir);
+            }
+            px = trees[cur].x;
+            py = trees[cur].base + (trees[cur].top - trees[cur].base) * ease(prog);
+            break;
+          }
+        }
+        place();
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+
+      window.addEventListener("resize", function(){
+        measure();
+        if (mode === "climbup" || mode === "climbdown" || mode === "top"){
+          px = trees[cur].x;
+          py = trees[cur].base + (trees[cur].top - trees[cur].base) * ease(prog);
+        } else if (mode === "wander"){
+          sx = px = Math.min(Math.max(px, 0), front.clientWidth);
+          sy = py = trees[target].base;
+          segS = 0;
+          segL = Math.hypot(trees[target].x - sx, trees[target].base - sy);
+        } else {
+          px = trees[cur].x; py = trees[cur].base;
+        }
+        place();
+      });
+    }
+  })();
+
+  // gentle pointer parallax (fine pointers only, honors reduced motion)
+  var fine = window.matchMedia("(pointer: fine)");
+  if (reduced.matches || !fine.matches) return;
+
+  var scene = document.getElementById("scene");
+  var tx = 0, ty = 0, cx = 0, cy = 0, raf = null;
+  function tick(){
+    cx += (tx - cx) * 0.06;
+    cy += (ty - cy) * 0.06;
+    scene.style.setProperty("--px", cx.toFixed(2) + "px");
+    scene.style.setProperty("--py", cy.toFixed(2) + "px");
+    if (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05){
+      raf = requestAnimationFrame(tick);
+    } else {
+      raf = null;
+    }
+  }
+  window.addEventListener("pointermove", function(e){
+    tx = (e.clientX / window.innerWidth - 0.5) * -22;
+    ty = (e.clientY / window.innerHeight - 0.5) * -10;
+    if (!raf) raf = requestAnimationFrame(tick);
+  }, { passive:true });
+})();
+</script>
+</body>
+</html>
